@@ -835,7 +835,16 @@
 
                 if (teachers && teachers.length > 0) appState.teachers = teachers;
                 if (classes && classes.length > 0) appState.classes = classes;
-                if (students && students.length > 0) appState.students = students;
+                //if (students && students.length > 0) appState.students = students;
+                if (students && students.length > 0) {
+                    appState.students = students.map(s => ({
+                        id: s.id,
+                        classId: s.class_id,
+                        name: s.name,
+                        age: s.age,
+                        gender: s.gender
+                    }));
+                }
                 if (subjects && subjects.length > 0) appState.subjects = subjects;
                 if (teachingAssignments && teachingAssignments.length > 0) {
                     appState.teachingAssignments = teachingAssignments.map(ta => ({
