@@ -783,83 +783,47 @@
     </div>
 
     <script>
-        // Supabase Client Initialization Placeholder (.pro.et deployment config)
-        const SUPABASE_URL = 'https://sqwhsgfmbvgdkclgfpmy.supabase.co/';
-        const SUPABASE_ANON_KEY = 'sb_secret_g9j5uG9RUY3psA20-JbpVg_F4TZ3bVp';
+        // Supabase Client Initialization (.pro.et deployment config)
+        // REPLACE WITH YOUR ACTUAL SUPABASE URL AND REAL PUBLIC ANON KEY FROM SUPABASE DASHBOARD
+        const SUPABASE_URL = 'https://sqwhsgfmbvgdkclgfpmy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxd2hzZ2ZtYnZnZGtjbGdmcG15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NDU0ODksImV4cCI6MjEwNzUyMTQ4OX0.bG6vIgdVirYcGmh0GfBFfrVFcBIK5abqVWGS6pS3RhA'; 
+        
         let supabaseClient = null;
         try {
-            if (window.supabase) {
+            if (window.supabase && SUPABASE_ANON_KEY !== 'YOUR_REAL_SUPABASE_ANON_KEY_HERE') {
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             }
         } catch (err) {
             console.warn('Supabase offline fallback mode active.', err);
         }
 
-        // Global State Management with Local Auto-save Queue
+        // Global State Management with Supabase & Local Cache
         let appState = {
             currentUser: null,
-            classes: [
-                { id: 'c1', name: 'Grade 1' },
-                { id: 'c2', name: 'Grade 2' }
-            ],
-            subjects: [
-                { id: 'sub1', name: 'English' },
-                { id: 'sub2', name: 'Math' },
-                { id: 'sub3', name: 'Sport' }
-            ],
-            students: [
-                { id: 's1', classId: 'c1', name: 'Solomon Abebe', age: 7, gender: 'Male' },
-                { id: 's2', classId: 'c1', name: 'Bethelhem Tadesse', age: 7, gender: 'Female' },
-                { id: 's3', classId: 'c2', name: 'Dawit Yohannes', age: 8, gender: 'Male' }
-            ],
-            teachers: [
-                { id: 't1', name: 'Dr. Alan Turing', subject: 'Science', username: 'aturing', password: 'password123' },
-                { id: 't2', name: 'Prof. Marie Curie', subject: 'Math', username: 'mcurie', password: 'password123' }
-            ],
-            teachingAssignments: [
-                { id: 'ta1', classId: 'c1', subjectId: 'sub1', subjectName: 'English', teacherId: 't1', teacherName: 'Dr. Alan Turing' },
-                { id: 'ta2', classId: 'c1', subjectId: 'sub2', subjectName: 'Math', teacherId: 't2', teacherName: 'Prof. Marie Curie' },
-                { id: 'ta3', classId: 'c1', subjectId: 'sub3', subjectName: 'Sport', teacherId: 't1', teacherName: 'Dr. Alan Turing' }
-            ],
-            markLists: [
-                {
-                    id: 'ml_c1_sub1',
-                    assignmentId: 'ta1',
-                    classId: 'c1',
-                    className: 'Grade 1',
-                    subjectName: 'English',
-                    teacherId: 't1',
-                    teacherName: 'Dr. Alan Turing',
-                    reported: true,
-                    assessments: [
-                        { id: 'a1', title: 'Quiz 1', maxMark: 20 },
-                        { id: 'a2', title: 'Midterm', maxMark: 30 },
-                        { id: 'a3', title: 'Final Exam', maxMark: 50 }
-                    ],
-                    grades: {
-                        's1': { marks: { a1: 18, a2: 28, a3: 46 }, customGrade: 'A+' },
-                        's2': { marks: { a1: 15, a2: 23, a3: 40 }, customGrade: 'B+' }
-                    }
-                }
-            ],
+            classes: [],
+            subjects: [],
+            students: [],
+            teachers: [],
+            teachingAssignments: [],
+            markLists: [],
             activeMarkListId: null
         };
 
+        // Load data from Supabase on startup, fallback to localStorage if offline
         async function loadStateFromSupabase() {
             if (!supabaseClient) {
-                loadState(); // Fallback to localStorage if offline
+                loadStateLocal();
                 return;
             }
-        
+
             try {
-                // Fetch all relational data from Supabase in parallel
                 const [
-                    { data: teachers },
-                    { data: classes },
-                    { data: students },
-                    { data: subjects },
-                    { data: teachingAssignments },
-                    { data: markLists }
+                    { data: teachers, error: tErr },
+                    { data: classes, error: cErr },
+                    { data: students, error: sErr },
+                    { data: subjects, error: subErr },
+                    { data: teachingAssignments, error: taErr },
+                    { data: markLists, error: mlErr }
                 ] = await Promise.all([
                     supabaseClient.from('teachers').select('*'),
                     supabaseClient.from('classes').select('*'),
@@ -868,13 +832,21 @@
                     supabaseClient.from('teaching_assignments').select('*'),
                     supabaseClient.from('mark_lists').select('*')
                 ]);
-        
-                // Update appState with remote database records if available
-                if (teachers) appState.teachers = teachers;
-                if (classes) appState.classes = classes;
-                if (students) appState.students = students;
-                if (subjects) appState.subjects = subjects;
-                if (teachingAssignments) appState.teachingAssignments = teachingAssignments;
+
+                if (teachers && teachers.length > 0) appState.teachers = teachers;
+                if (classes && classes.length > 0) appState.classes = classes;
+                if (students && students.length > 0) appState.students = students;
+                if (subjects && subjects.length > 0) appState.subjects = subjects;
+                if (teachingAssignments && teachingAssignments.length > 0) {
+                    appState.teachingAssignments = teachingAssignments.map(ta => ({
+                        id: ta.id,
+                        classId: ta.class_id,
+                        subjectId: ta.subject_id,
+                        subjectName: appState.subjects.find(s => s.id === ta.subject_id)?.name || 'Subject',
+                        teacherId: ta.teacher_id,
+                        teacherName: appState.teachers.find(t => t.id === ta.teacher_id)?.name || 'Teacher'
+                    }));
+                }
                 
                 if (markLists && markLists.length > 0) {
                     appState.markLists = markLists.map(ml => ({
@@ -890,24 +862,56 @@
                         grades: ml.grades || {}
                     }));
                 }
-        
-                console.log('Successfully synced state from Supabase!');
+
+                // If remote database is empty, seed with initial defaults and save to DB
+                if (appState.classes.length === 0 && appState.teachers.length === 0) {
+                    await seedInitialData();
+                }
+
+                document.getElementById('syncStatusText').textContent = 'Synced with Supabase';
+                console.log('Successfully synced state from Supabase across devices!');
             } catch (err) {
-                console.error('Failed to load from Supabase, using local cache:', err);
-                loadState();
+                console.warn('Failed to load from Supabase, using local cache:', err);
+                loadStateLocal();
+                document.getElementById('syncStatusText').textContent = 'Offline (Local Cache)';
+            }
+        }
+
+        async function seedInitialData() {
+            if (!supabaseClient) return;
+            // Seed initial class & teacher if needed
+            const { data: cData } = await supabaseClient.from('classes').insert([{ name: 'Grade 1' }, { name: 'Grade 2' }]).select();
+            const { data: tData } = await supabaseClient.from('teachers').insert([
+                { name: 'Dr. Alan Turing', subject: 'Science', username: 'aturing', password: 'password123' },
+                { name: 'Prof. Marie Curie', subject: 'Math', username: 'mcurie', password: 'password123' }
+            ]).select();
+            const { data: sData } = await supabaseClient.from('subjects').insert([{ name: 'English' }, { name: 'Math' }, { name: 'Sport' }]).select();
+            if (cData && tData && sData) {
+                appState.classes = cData;
+                appState.teachers = tData;
+                appState.subjects = sData;
+            }
+        }
+
+        function loadStateLocal() {
+            const saved = localStorage.getItem('academic_sims_state_pro_v3');
+            if (saved) {
+                try {
+                    appState = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Failed to parse saved state', e);
+                }
             }
         }
 
         async function saveState() {
-            // 1. Save locally for instant UI responsiveness and offline safety
             localStorage.setItem('academic_sims_state_pro_v3', JSON.stringify(appState));
-            
             const ts = document.getElementById('lastSavedTimestamp');
             if (ts) {
                 ts.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
             }
 
-            // 2. Sync active mark lists to Supabase in the background
+            // Sync active mark list to Supabase
             if (supabaseClient && appState.activeMarkListId) {
                 const ml = appState.markLists.find(m => m.id === appState.activeMarkListId);
                 if (ml) {
@@ -927,10 +931,7 @@
                         });
                     
                     if (error) {
-                        console.warn('Supabase sync warning:', error.message);
-                        document.getElementById('syncStatusText').textContent = 'Offline (Queued locally)';
-                    } else {
-                        document.getElementById('syncStatusText').textContent = 'Synced with Supabase';
+                        console.warn('Supabase mark list sync warning:', error.message);
                     }
                 }
             }
@@ -990,10 +991,11 @@
             } else {
                 btnTeacher.className = "flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition";
                 btnAdmin.className = "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition";
-                usernameInput.value = 'aturing';
+                usernameInput.value = appState.teachers[0] ? appState.teachers[0].username : 'aturing';
                 passwordInput.value = 'password123';
             }
         }
+
         async function handleLogin(e) {
             e.preventDefault();
             const role = document.getElementById('selectedRole').value;
@@ -1002,7 +1004,6 @@
             const errorDiv = document.getElementById('loginError');
 
             if (role === 'admin') {
-                // Department Head validation
                 if (u === 'admin' && p === 'admin123') {
                     appState.currentUser = { id: 'admin', name: 'Department Head', role: 'admin' };
                     errorDiv.classList.add('hidden');
@@ -1011,14 +1012,12 @@
                     errorDiv.classList.remove('hidden');
                 }
             } else {
-                // Teacher authentication via Supabase or local sync state
                 const teacher = appState.teachers.find(t => t.username === u && t.password === p);
                 if (teacher) {
                     appState.currentUser = { id: teacher.id, name: teacher.name, role: 'teacher' };
                     errorDiv.classList.add('hidden');
                     checkAuthView();
 
-                    // If Supabase client is active, upsert session state
                     if (supabaseClient) {
                         await supabaseClient.from('audit_logs').insert([{
                             action_type: 'LOGIN',
@@ -1033,7 +1032,6 @@
                 }
             }
         }
-
 
         function logout() {
             appState.currentUser = null;
@@ -1110,34 +1108,44 @@
             if (tabName === 'marklists') renderTeacherMarkLists();
         }
 
-        // Teacher Management
+        // Teacher Management (with Supabase sync)
         async function handleCreateTeacher(e) {
             e.preventDefault();
             const name = document.getElementById('newTeacherName').value.trim();
             const subject = document.getElementById('newTeacherSubject').value.trim();
             const username = document.getElementById('newTeacherUsername').value.trim();
             const password = document.getElementById('newTeacherPassword').value.trim();
-        
-            const newTeacher = { name, subject, username, password };
-        
+
+            if (appState.teachers.some(t => t.username === username)) {
+                alert('Username already exists.');
+                return;
+            }
+
+            const newTeacherObj = { name, subject, username, password };
+
             if (supabaseClient) {
-                const { data, error } = await supabaseClient.from('teachers').insert([newTeacher]).select();
+                const { data, error } = await supabaseClient.from('teachers').insert([newTeacherObj]).select();
                 if (error) {
                     alert('Error saving to Supabase: ' + error.message);
                     return;
                 }
-                if (data && data[0]) appState.teachers.push(data[0]);
+                if (data && data[0]) {
+                    appState.teachers.push(data[0]);
+                }
             } else {
-                appState.teachers.push({ id: 't_' + Date.now(), ...newTeacher });
+                appState.teachers.push({ id: 't_' + Date.now(), ...newTeacherObj });
             }
-        
+
             saveState();
             renderAdminTeachers();
             e.target.reset();
         }
 
-        function deleteTeacher(teacherId) {
-            if (confirm('Are you sure you want to delete this teacher account? (Triggers PostgreSQL audit log)')) {
+        async function deleteTeacher(teacherId) {
+            if (confirm('Are you sure you want to delete this teacher account?')) {
+                if (supabaseClient) {
+                    await supabaseClient.from('teachers').delete().eq('id', teacherId);
+                }
                 appState.teachers = appState.teachers.filter(t => t.id !== teacherId);
                 appState.teachingAssignments = appState.teachingAssignments.filter(ta => ta.teacherId !== teacherId);
                 saveState();
@@ -1161,7 +1169,7 @@
             document.getElementById('editTeacherModal').classList.add('hidden');
         }
 
-        function handleSaveEditedTeacher(e) {
+        async function handleSaveEditedTeacher(e) {
             e.preventDefault();
             const id = document.getElementById('editTeacherId').value;
             const t = appState.teachers.find(item => item.id === id);
@@ -1171,6 +1179,15 @@
             t.subject = document.getElementById('editTeacherSubject').value.trim();
             t.username = document.getElementById('editTeacherUsername').value.trim();
             t.password = document.getElementById('editTeacherPassword').value.trim();
+
+            if (supabaseClient) {
+                await supabaseClient.from('teachers').update({
+                    name: t.name,
+                    subject: t.subject,
+                    username: t.username,
+                    password: t.password
+                }).eq('id', id);
+            }
 
             saveState();
             renderAdminTeachers();
@@ -1200,32 +1217,61 @@
             });
         }
 
-        // Class & Student Management
-        function handleCreateClass(e) {
+        // Class & Student Management (with Supabase sync)
+        async function handleCreateClass(e) {
             e.preventDefault();
             const name = document.getElementById('newClassName').value.trim();
-            appState.classes.push({ id: 'c_' + Date.now(), name });
+            let newClassObj = { name };
+
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.from('classes').insert([newClassObj]).select();
+                if (error) {
+                    alert('Error creating class in Supabase: ' + error.message);
+                    return;
+                }
+                if (data && data[0]) appState.classes.push(data[0]);
+            } else {
+                appState.classes.push({ id: 'c_' + Date.now(), name });
+            }
+
             saveState();
             renderAdminClassesDropdowns();
             e.target.reset();
         }
 
-        function handleRegisterStudent(e) {
+        async function handleRegisterStudent(e) {
             e.preventDefault();
-            const classId = document.getElementById('regStudentClassSelect').value;
+            const class_id = document.getElementById('regStudentClassSelect').value;
             const name = document.getElementById('regStudentName').value.trim();
             const age = parseInt(document.getElementById('regStudentAge').value) || 7;
             const gender = document.getElementById('regStudentGender').value;
 
-            appState.students.push({ id: 's_' + Date.now(), classId, name, age, gender });
+            const studentObj = { class_id, name, age, gender };
+
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.from('students').insert([studentObj]).select();
+                if (error) {
+                    alert('Error registering student in Supabase: ' + error.message);
+                    return;
+                }
+                if (data && data[0]) {
+                    appState.students.push({ id: data[0].id, classId: data[0].class_id, name: data[0].name, age: data[0].age, gender: data[0].gender });
+                }
+            } else {
+                appState.students.push({ id: 's_' + Date.now(), classId: class_id, name, age, gender });
+            }
+
             saveState();
             renderAdminRosterTable();
             populateReportCardDropdowns();
             e.target.reset();
         }
 
-        function deleteStudent(studentId) {
-            if (confirm('Are you sure you want to remove this student? (Trigger logs deletion in audit table)')) {
+        async function deleteStudent(studentId) {
+            if (confirm('Are you sure you want to remove this student?')) {
+                if (supabaseClient) {
+                    await supabaseClient.from('students').delete().eq('id', studentId);
+                }
                 appState.students = appState.students.filter(s => s.id !== studentId);
                 saveState();
                 renderAdminRosterTable();
@@ -1254,7 +1300,7 @@
             document.getElementById('editStudentModal').classList.add('hidden');
         }
 
-        function handleSaveEditedStudent(e) {
+        async function handleSaveEditedStudent(e) {
             e.preventDefault();
             const id = document.getElementById('editStudentId').value;
             const s = appState.students.find(item => item.id === id);
@@ -1263,6 +1309,16 @@
             s.age = parseInt(document.getElementById('editStudentAge').value) || s.age;
             s.gender = document.getElementById('editStudentGender').value;
             s.classId = document.getElementById('editStudentClass').value;
+
+            if (supabaseClient) {
+                await supabaseClient.from('students').update({
+                    name: s.name,
+                    age: s.age,
+                    gender: s.gender,
+                    class_id: s.classId
+                }).eq('id', id);
+            }
+
             saveState();
             renderAdminRosterTable();
             closeEditStudentModal();
@@ -1271,6 +1327,7 @@
         function renderAdminClassesDropdowns() {
             ['regStudentClassSelect', 'adminRosterClassFilter', 'assignClassSelect'].forEach(id => {
                 const el = document.getElementById(id);
+                if (!el) return;
                 const val = el.value;
                 el.innerHTML = id === 'adminRosterClassFilter' ? '<option value="">All Classes</option>' : '<option value="">-- Choose Class --</option>';
                 appState.classes.forEach(c => {
@@ -1306,38 +1363,77 @@
             });
         }
 
-        // Subjects & Assignments
-        function handleCreateSubject(e) {
+        // Subjects & Assignments (with Supabase sync)
+        async function handleCreateSubject(e) {
             e.preventDefault();
             const name = document.getElementById('newSubjectName').value.trim();
-            appState.subjects.push({ id: 'sub_' + Date.now(), name });
+
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.from('subjects').insert([{ name }]).select();
+                if (error) {
+                    alert('Error creating subject in Supabase: ' + error.message);
+                    return;
+                }
+                if (data && data[0]) appState.subjects.push(data[0]);
+            } else {
+                appState.subjects.push({ id: 'sub_' + Date.now(), name });
+            }
+
             saveState();
             renderAdminSubjectsTable();
             e.target.reset();
         }
 
-        function handleAssignTeacherSubject(e) {
+        async function handleAssignTeacherSubject(e) {
             e.preventDefault();
-            const teacherId = document.getElementById('assignTeacherSelect').value;
-            const classId = document.getElementById('assignClassSelect').value;
-            const subjectId = document.getElementById('assignSubjectSelect').value;
+            const teacher_id = document.getElementById('assignTeacherSelect').value;
+            const class_id = document.getElementById('assignClassSelect').value;
+            const subject_id = document.getElementById('assignSubjectSelect').value;
 
-            const tObj = appState.teachers.find(t => t.id === teacherId);
-            const cObj = appState.classes.find(c => c.id === classId);
-            const sObj = appState.subjects.find(s => s.id === subjectId);
+            const tObj = appState.teachers.find(t => t.id === teacher_id);
+            const cObj = appState.classes.find(c => c.id === class_id);
+            const sObj = appState.subjects.find(s => s.id === subject_id);
 
-            const newAssignment = { id: 'ta_' + Date.now(), classId, subjectId, subjectName: sObj.name, teacherId, teacherName: tObj.name };
+            let newAssignment = { class_id, subject_id, teacher_id };
+
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient.from('teaching_assignments').insert([newAssignment]).select();
+                if (error) {
+                    alert('Error creating assignment in Supabase: ' + error.message);
+                    return;
+                }
+                if (data && data[0]) {
+                    newAssignment = {
+                        id: data[0].id,
+                        classId: data[0].class_id,
+                        subjectId: data[0].subject_id,
+                        subjectName: sObj.name,
+                        teacherId: data[0].teacher_id,
+                        teacherName: tObj.name
+                    };
+                }
+            } else {
+                newAssignment = {
+                    id: 'ta_' + Date.now(),
+                    classId: class_id,
+                    subjectId: subject_id,
+                    subjectName: sObj.name,
+                    teacherId: teacher_id,
+                    teacherName: tObj.name
+                };
+            }
+
             appState.teachingAssignments.push(newAssignment);
 
-            const mlId = `ml_${classId}_${subjectId}`;
+            const mlId = `ml_${class_id}_${subject_id}`;
             if (!appState.markLists.some(m => m.id === mlId)) {
                 appState.markLists.push({
                     id: mlId,
                     assignmentId: newAssignment.id,
-                    classId,
+                    classId: class_id,
                     className: cObj.name,
                     subjectName: sObj.name,
-                    teacherId,
+                    teacherId: teacher_id,
                     teacherName: tObj.name,
                     reported: false,
                     assessments: [
@@ -1352,8 +1448,11 @@
             renderAdminSubjectsTable();
         }
 
-        function deleteAssignment(assignmentId) {
+        async function deleteAssignment(assignmentId) {
             if (confirm('Remove assignment?')) {
+                if (supabaseClient) {
+                    await supabaseClient.from('teaching_assignments').delete().eq('id', assignmentId);
+                }
                 appState.teachingAssignments = appState.teachingAssignments.filter(ta => ta.id !== assignmentId);
                 saveState();
                 renderAdminSubjectsTable();
@@ -1363,12 +1462,17 @@
         function renderAdminSubjectsTable() {
             const selectTeacher = document.getElementById('assignTeacherSelect');
             const selectSub = document.getElementById('assignSubjectSelect');
-            selectTeacher.innerHTML = '<option value="">-- Choose Teacher --</option>';
-            appState.teachers.forEach(t => selectTeacher.innerHTML += `<option value="${t.id}">${t.name}</option>`);
-            selectSub.innerHTML = '<option value="">-- Choose Subject --</option>';
-            appState.subjects.forEach(s => selectSub.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            if (selectTeacher) {
+                selectTeacher.innerHTML = '<option value="">-- Choose Teacher --</option>';
+                appState.teachers.forEach(t => selectTeacher.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+            }
+            if (selectSub) {
+                selectSub.innerHTML = '<option value="">-- Choose Subject --</option>';
+                appState.subjects.forEach(s => selectSub.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+            }
 
             const tbody = document.getElementById('adminAssignmentsTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
             appState.teachingAssignments.forEach(ta => {
                 const cObj = appState.classes.find(c => c.id === ta.classId);
@@ -1385,6 +1489,7 @@
 
         function renderTeacherMarkLists() {
             const tbody = document.getElementById('teacherMarkListsTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
             const teacherAssignments = appState.teachingAssignments.filter(ta => ta.teacherId === appState.currentUser.id);
             document.getElementById('teacherMarkListCount').textContent = `${teacherAssignments.length} Mark Lists`;
@@ -1413,6 +1518,7 @@
 
         function renderAdminMarkLists() {
             const tbody = document.getElementById('adminMarkListsTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
             appState.markLists.forEach(ml => {
                 tbody.innerHTML += `
@@ -1578,7 +1684,7 @@
                     <td class="py-3 px-4 text-center font-bold text-indigo-600">${scoreObj.mark}</td>
                     <td class="py-3 px-4 text-center">${isAdmin ? `<span class="font-bold px-2.5 py-1 rounded-lg text-xs ${getGradeBadgeClass(scoreObj.customGrade)}">${scoreObj.customGrade}</span>` : `<input type="text" value="${scoreObj.customGrade}" onchange="updateCustomGrade('${s.id}', this.value)" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-20 text-center font-bold text-xs">`}</td>
                 `;
-                tbody.innerHTML += `<tr class="hover:bg-slate-50 transition">${rowHTML}</tr>`;
+                tbody.appendChild(tr = `<tr class="hover:bg-slate-50 transition">${rowHTML}</tr>`);
             });
         }
 
@@ -1613,6 +1719,7 @@
         // Report Cards
         function populateReportCardDropdowns() {
             const classSelect = document.getElementById('reportCardClassSelect');
+            if (!classSelect) return;
             const val = classSelect.value;
             classSelect.innerHTML = '<option value="">-- Choose Class --</option>';
             appState.classes.forEach(c => classSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
@@ -1626,8 +1733,10 @@
         }
 
         function populateStudentsForReportCard() {
-            const classId = document.getElementById('reportCardClassSelect').value;
+            const classSelect = document.getElementById('reportCardClassSelect');
             const studentSelect = document.getElementById('reportCardStudentSelect');
+            if (!classSelect || !studentSelect) return;
+            const classId = classSelect.value;
             studentSelect.innerHTML = '<option value="">-- Choose Student --</option>';
             if (!classId) return;
             appState.students.filter(s => s.classId === classId).forEach(s => {
@@ -1636,14 +1745,17 @@
         }
 
         function generateStudentReportCard() {
-            const classId = document.getElementById('reportCardClassSelect').value;
-            const studentId = document.getElementById('reportCardStudentSelect').value;
+            const classSelect = document.getElementById('reportCardClassSelect');
+            const studentSelect = document.getElementById('reportCardStudentSelect');
+            if (!classSelect || !studentSelect) return;
+            const classId = classSelect.value;
+            const studentId = studentSelect.value;
             const container = document.getElementById('reportCardContainer');
             const emptyState = document.getElementById('reportCardEmpty');
 
             if (!classId || !studentId) {
-                container.classList.add('hidden');
-                emptyState.classList.remove('hidden');
+                if (container) container.classList.add('hidden');
+                if (emptyState) emptyState.classList.remove('hidden');
                 return;
             }
 
