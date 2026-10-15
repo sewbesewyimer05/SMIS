@@ -1042,9 +1042,18 @@
             }
         }
 
+        // function logout() {
+        //     appState.currentUser = null;
+        //     checkAuthView();
+        // }
         function logout() {
             appState.currentUser = null;
-            checkAuthView();
+            appState.role = null;
+            localStorage.removeItem('academicpro_sims_session'); // FIX: Clear session storage
+            document.getElementById('mainHeader').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('teacherDashboard').classList.add('hidden');
+            document.getElementById('loginView').classList.remove('hidden');
         }
 
         // Grading Helpers & Weight Validator
