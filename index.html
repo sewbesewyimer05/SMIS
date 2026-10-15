@@ -912,85 +912,39 @@
                 }
             }
         }
-        function saveState() {
-            localStorage.setItem('academicpro_sims_state', JSON.stringify(appState));
-            // FIX: Also persist current session info
-            if (appState.currentUser) {
-                localStorage.setItem('academicpro_sims_session', JSON.stringify({
-                    currentUser: appState.currentUser,
-                    role: appState.role
-                }));
-            } else {
-                localStorage.removeItem('academicpro_sims_session');
-            }
-        }
-        
-        async function initApp() {
-            const saved = localStorage.getItem('academicpro_sims_state');
-            if (saved) {
-                try {
-                    appState = JSON.parse(saved);
-                } catch (e) {
-                    console.error('Error loading state:', e);
-                }
-            }
-        
-            // FIX: Restore session on reload
-            const savedSession = localStorage.getItem('academicpro_sims_session');
-            if (savedSession) {
-                try {
-                    const session = JSON.parse(savedSession);
-                    appState.currentUser = session.currentUser;
-                    appState.role = session.role;
-                } catch (e) {
-                    console.error('Error restoring session:', e);
-                }
-            }
-        
-            if (supabaseClient) {
-                await loadStateFromSupabase();
-            }
-        
-            // FIX: If logged in, automatically enter dashboard
-            if (appState.currentUser && appState.role) {
-                enterDashboard();
-            } else {
-                renderAll();
-            }
-        }
 
-        // async function saveState() {
-        //     localStorage.setItem('academic_sims_state_pro_v3', JSON.stringify(appState));
-        //     const ts = document.getElementById('lastSavedTimestamp');
-        //     if (ts) {
-        //         ts.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
-        //     }
+        async function saveState() {
+            localStorage.setItem('academic_sims_state_pro_v3', JSON.stringify(appState));
+            const ts = document.getElementById('lastSavedTimestamp');
+            if (ts) {
+                ts.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
+            }
 
-        //     // Sync active mark list to Supabase
-        //     if (supabaseClient && appState.activeMarkListId) {
-        //         const ml = appState.markLists.find(m => m.id === appState.activeMarkListId);
-        //         if (ml) {
-        //             const { error } = await supabaseClient
-        //                 .from('mark_lists')
-        //                 .upsert({
-        //                     id: ml.id,
-        //                     assignment_id: ml.assignmentId,
-        //                     class_id: ml.classId,
-        //                     subject_name: ml.subjectName,
-        //                     teacher_id: ml.teacherId,
-        //                     teacher_name: ml.teacherName,
-        //                     reported: ml.reported,
-        //                     assessments: ml.assessments,
-        //                     grades: ml.grades,
-        //                     updated_at: new Date().toISOString()
-        //                 });
+            // Sync active mark list to Supabase
+            if (supabaseClient && appState.activeMarkListId) {
+                const ml = appState.markLists.find(m => m.id === appState.activeMarkListId);
+                if (ml) {
+                    const { error } = await supabaseClient
+                        .from('mark_lists')
+                        .upsert({
+                            id: ml.id,
+                            assignment_id: ml.assignmentId,
+                            class_id: ml.classId,
+                            subject_name: ml.subjectName,
+                            teacher_id: ml.teacherId,
+                            teacher_name: ml.teacherName,
+                            reported: ml.reported,
+                            assessments: ml.assessments,
+                            grades: ml.grades,
+                            updated_at: new Date().toISOString()
+                        });
                     
-        //             if (error) {
-        //                 console.warn('Supabase mark list sync warning:', error.message);
-        //             }
-        //         }
-        //     }
-        // }
+                    if (error) {
+                        console.warn('Supabase mark list sync warning:', error.message);
+                    }
+                }
+            }
+        }
 
         // Authentication & View Routing
         function checkAuthView() {
