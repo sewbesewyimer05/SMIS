@@ -1497,12 +1497,24 @@
         }
 
         function renderTeacherMarkLists() {
+            //const tbody = document.getElementById('teacherMarkListsTableBody');
+            //if (!tbody) return;
+            //tbody.innerHTML = '';
+            //const teacherAssignments = appState.teachingAssignments.filter(ta => ta.teacherId === appState.currentUser.id);
+            //document.getElementById('teacherMarkListCount').textContent = `${teacherAssignments.length} Mark Lists`;
+        function renderTeacherMarkLists() {
             const tbody = document.getElementById('teacherMarkListsTableBody');
             if (!tbody) return;
             tbody.innerHTML = '';
-            const teacherAssignments = appState.teachingAssignments.filter(ta => ta.teacherId === appState.currentUser.id);
-            document.getElementById('teacherMarkListCount').textContent = `${teacherAssignments.length} Mark Lists`;
-
+        
+            // FIX: Guard against missing current user session
+            if (!appState.currentUser) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Session not active. Please log in again.</td></tr>`;
+                return;
+            }
+        
+            const myAssignments = appState.assignments.filter(a => a.teacherId === appState.currentUser.id);
+            document.getElementById('teacherMarkListCount').innerText = `${myAssignments.length} Mark Lists`;
             teacherAssignments.forEach(ta => {
                 const cObj = appState.classes.find(c => c.id === ta.classId);
                 const mlId = `ml_${ta.classId}_${ta.subjectId}`;
